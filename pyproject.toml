@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "staffetta"
+description = "Передача задач между ИИ-агентами: pack/check/restore-missing/brief, только стандартная библиотека"
+readme = "README.md"
+requires-python = ">=3.10"
+dynamic = ["version"]
+
+[project.scripts]
+staffetta = "staffetta.__main__:main"
+
+[tool.setuptools]
+packages = ["staffetta"]
+
+[tool.setuptools.dynamic]
+version = { attr = "staffetta.__version__" }

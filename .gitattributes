@@ -1,0 +1,2 @@
+# The demo manifest identifies these files by their original bytes.
+demo/** -text
