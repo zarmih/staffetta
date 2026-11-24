@@ -6,6 +6,7 @@ import errno
 import hashlib
 import json
 import os
+import shlex
 import shutil
 import stat
 import sys
@@ -326,12 +327,15 @@ def _install_o_excl(tmp: Path, target: Path) -> bool:
 
 def _nonatomic_refusal(handoff_dir: Path, workdir: Path) -> str:
     """Сообщение об отказе: том не умеет атомарную установку «только создать»."""
+    retry = shlex.join([
+        "staffetta", "restore-missing", "--allow-nonatomic", "--",
+        str(handoff_dir), str(workdir),
+    ])
     return (
         "эта файловая система не поддерживает ни жёсткие ссылки, ни "
         "исключительное переименование — установить конечный файл только "
         "целиком здесь невозможно, и он не создан. Точная команда повтора:\n"
-        f"  python3 -m staffetta restore-missing --allow-nonatomic "
-        f"\"{handoff_dir}\" \"{workdir}\"\n"
+        f"  {retry}\n"
         "В этом режиме при прерывании записи файл может оказаться неполным — "
         "после восстановления сверьте его SHA-256 командой check."
     )

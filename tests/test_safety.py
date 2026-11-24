@@ -10,6 +10,7 @@ import errno
 import io
 import json
 import os
+import shlex
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -231,7 +232,7 @@ class TestNonatomicRefusal(StaffettaAttachmentsTestCase):
     def test_default_refuses_before_creating_final_file(self):
         handoff = self.pack(["--file", F3, "--attach", F3])
         manifest = core.load_manifest(handoff / "manifest.json")
-        workdir = self.base / "refusal-recipient"
+        workdir = self.base / "refusal recipient '$work'"
         workdir.mkdir()
 
         with mock.patch("staffetta.core.os.link", side_effect=link_unsupported), \
@@ -241,10 +242,10 @@ class TestNonatomicRefusal(StaffettaAttachmentsTestCase):
                 core.run_restore(manifest, handoff, workdir)
 
         message = str(ctx.exception)
-        self.assertIn("--allow-nonatomic", message)
-        self.assertIn("restore-missing", message)
-        self.assertIn(str(handoff), message)
-        self.assertIn(str(workdir), message)
+        self.assertEqual(shlex.split(message.splitlines()[1]), [
+            "staffetta", "restore-missing", "--allow-nonatomic", "--",
+            str(handoff), str(workdir),
+        ])
         self.assertIn("неполным", message)
         self.assertFalse((workdir / F3).exists(), "конечный файл создан вопреки отказу")
         self.assertEqual(list(workdir.glob(".staffetta-*")), [],
