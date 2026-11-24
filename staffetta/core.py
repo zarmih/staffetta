@@ -6,6 +6,7 @@ import errno
 import hashlib
 import json
 import os
+import shlex
 import shutil
 import stat
 import sys
@@ -326,12 +327,15 @@ def _install_o_excl(tmp: Path, target: Path) -> bool:
 
 def _nonatomic_refusal(handoff_dir: Path, workdir: Path) -> str:
     """Сообщение об отказе: том не умеет атомарную установку «только создать»."""
+    retry = shlex.join([
+        "staffetta", "restore-missing", "--allow-nonatomic", "--",
+        str(handoff_dir), str(workdir),
+    ])
     return (
         "эта файловая система не поддерживает ни жёсткие ссылки, ни "
         "исключительное переименование — установить конечный файл только "
         "целиком здесь невозможно, и он не создан. Точная команда повтора:\n"
-        f"  python3 -m staffetta restore-missing --allow-nonatomic "
-        f"\"{handoff_dir}\" \"{workdir}\"\n"
+        f"  {retry}\n"
         "В этом режиме при прерывании записи файл может оказаться неполным — "
         "после восстановления сверьте его SHA-256 командой check."
     )
@@ -727,7 +731,7 @@ def render_handoff(manifest: dict) -> str:
     if has_attachments:
         add("Файлы с пометкой «да» лежат внутри этой папки передачи в `attachments/`. "
             "Отсутствующие в рабочей копии восстанавливает команда "
-            "`python3 -m staffetta restore-missing \"<папка передачи>\" "
+            "`staffetta restore-missing \"<папка передачи>\" "
             "\"<рабочая копия>\"`: только отсутствующие вложенные файлы, "
             "существующие и изменённые она не перезаписывает.")
         add("")
@@ -749,11 +753,10 @@ def render_handoff(manifest: dict) -> str:
         "выполнить смысловую часть (понять цель, решение, следующий шаг), но не проверку "
         "файлов: не изображай выполнение check; прямо скажи, что проверка не выполнялась, "
         "и запроси доступ к папке передачи и к рабочей копии.")
-    add("3. Проверку файлов выполняй из корня проекта Staffetta — каталога, где лежит "
-        "пакет `staffetta/` (рядом с PILOT.md). Пример команды для macOS с python3:")
+    add("3. Проверь файлы установленной командой `staffetta` из любого каталога:")
     add("")
     add("   ```")
-    add("   python3 -m staffetta check \"<папка, где лежит этот HANDOFF.md>\" "
+    add("   staffetta check \"<папка, где лежит этот HANDOFF.md>\" "
         "\"<путь к рабочей копии получателя>\"")
     add("   ```")
     add("")

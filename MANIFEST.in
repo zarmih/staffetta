@@ -1,0 +1,4 @@
+include PILOT.md
+recursive-include demo *.md *.json *.py *.csv
+recursive-include tests *.py
+global-exclude ._*

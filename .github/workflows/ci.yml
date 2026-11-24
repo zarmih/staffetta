@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: macos-15
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.14']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Test the source tree
+        run: python -m unittest discover -s tests
+      - name: Build wheel and sdist
+        run: |
+          python -m pip install build
+          python -m build
+      - name: Install and test both distributions outside the checkout
+        run: |
+          smoke_dir=$(mktemp -d)
+          cp tests/smoke_installed.py "$smoke_dir/"
+          cp -R demo "$smoke_dir/"
+          cd "$smoke_dir"
+          for artifact in "$GITHUB_WORKSPACE"/dist/*; do
+            python -m venv venv
+            venv/bin/python -m pip install --no-deps "$artifact"
+            venv/bin/python -I smoke_installed.py
+            rm -r venv
+          done
