@@ -1,4 +1,4 @@
-"""Точка входа `python3 -m staffetta`: команды pack, check и restore-missing."""
+"""Точка входа Staffetta: команды pack, check, restore-missing и brief."""
 from __future__ import annotations
 
 import argparse
@@ -9,7 +9,7 @@ import sys
 import tempfile
 from pathlib import Path, PurePosixPath
 
-from . import core
+from . import __version__, core
 
 STATUS_RU = {
     "match": "совпадает",
@@ -179,8 +179,6 @@ def cmd_restore_missing(args: argparse.Namespace) -> int:
         return 1
     except core.StaffettaError as exc:
         return _fail(str(exc))
-    except OSError as exc:
-        return _fail(f"ошибка файловой системы: {exc}")
 
     attached = [e for e in manifest["files"] if e.get("attached") is True]
     if not attached:
@@ -214,15 +212,17 @@ def _parse_excerpt(spec: str):
         raise core.StaffettaError(
             f"некорректный --excerpt {spec!r}: ожидается ПУТЬ:НАЧАЛО[-КОНЕЦ] "
             "(нумерация строк с 1)")
-    if "-" in range_part:
-        first, _, second = range_part.partition("-")
-        if not (first.isdigit() and second.isdigit()):
-            raise core.StaffettaError(f"некорректный диапазон в --excerpt {spec!r}")
-        line_from, line_to = int(first), int(second)
-    else:
-        if not range_part.isdigit():
-            raise core.StaffettaError(f"некорректный диапазон в --excerpt {spec!r}")
-        line_from = line_to = int(range_part)
+    first, dash, last = range_part.partition("-")
+    if not dash:
+        last = first
+    try:
+        if not (first.isdecimal() and last.isdecimal()):
+            raise ValueError
+        line_from, line_to = int(first), int(last)
+    except ValueError:
+        raise core.StaffettaError(
+            f"некорректный диапазон в --excerpt {spec!r}"
+        ) from None
     if line_from < 1 or line_to < line_from:
         raise core.StaffettaError(
             f"некорректный диапазон в --excerpt {spec!r}: нужно 1 ≤ НАЧАЛО ≤ КОНЕЦ")
@@ -289,8 +289,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="Передача задачи между ИИ-агентами: pack собирает записку и "
                     "манифест (с вложениями по --attach), check сверяет файлы с "
                     "рабочей копией получателя, restore-missing возвращает "
-                    "отсутствующие вложенные файлы.",
+                    "отсутствующие вложенные файлы, brief готовит текст для чата.",
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True,
                                 metavar="{pack,check,restore-missing,brief}")
 
@@ -356,7 +357,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except OSError as exc:
+        return _fail(f"ошибка файловой системы: {exc}")
 
 
 if __name__ == "__main__":
